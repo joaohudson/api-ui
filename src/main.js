@@ -112,5 +112,5 @@ window.addEventListener("DOMContentLoaded", () => {
   renderRequestEditor();
   renderInitialResponsePanel();
   setRequestStateListener(handleRequestStateChange);
-  console.log("API Client iniciado.");
+  console.log("API UI iniciado.");
 });

@@ -1,12 +1,12 @@
 [package]
-name = "api-client"
+name = "api-ui"
 version = "0.1.0"
 description = "Cliente de API offline, alternativa ao Postman"
 edition = "2021"
 rust-version = "1.77"
 
 [lib]
-name = "api_client_lib"
+name = "api_ui_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -3,8 +3,8 @@
 //! Onde os dados são salvos:
 //! - Todos os arquivos ficam dentro do diretório de dados do app, resolvido em
 //!   tempo de execução via `tauri::Manager::path().app_data_dir()` (ex.:
-//!   `~/.local/share/com.apiclient.app` no Linux, `%APPDATA%\com.apiclient.app`
-//!   no Windows, `~/Library/Application Support/com.apiclient.app` no macOS).
+//!   `~/.local/share/com.apiui.app` no Linux, `%APPDATA%\com.apiui.app`
+//!   no Windows, `~/Library/Application Support/com.apiui.app` no macOS).
 //! - Não há sincronização remota nem banco de dados externo: cada "entidade"
 //!   (coleção, ambiente, etc.) é serializada como um arquivo `.json` isolado,
 //!   permitindo que os dados sobrevivam ao fechamento da aplicação.
