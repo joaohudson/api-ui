@@ -128,13 +128,14 @@ button {
 
 .collections-list li,
 .requests-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
   padding: 0.4rem 0.5rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .collections-list li:hover,
@@ -146,6 +147,33 @@ button {
 .requests-list li.active {
   background-color: var(--color-accent);
   color: #fff;
+}
+
+.list-item-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-item-delete-btn {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  line-height: 1;
+  border: none;
+  background-color: transparent;
+  color: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
+.list-item-delete-btn:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.15);
 }
 
 /* Main area */
@@ -233,6 +261,27 @@ button {
   padding: 0.45rem 0.6rem;
   font-size: 0.9rem;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.save-btn {
+  flex-shrink: 0;
+  background-color: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: var(--color-bg);
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .send-btn {
@@ -548,4 +597,103 @@ body.resizing-row,
 body.resizing-row * {
   cursor: row-resize !important;
   user-select: none !important;
+}
+
+/* Modal (fase 3) */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.modal {
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.modal-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.modal-message {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.modal-message[hidden] {
+  display: none;
+}
+
+.modal-input {
+  display: block;
+  width: 100%;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  font-family: inherit;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.modal-input[hidden] {
+  display: none;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-btn {
+  border-radius: 4px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.modal-btn[hidden] {
+  display: none;
+}
+
+.modal-btn-secondary {
+  background-color: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.modal-btn-secondary:hover {
+  background-color: var(--color-bg);
+}
+
+.modal-btn-primary {
+  background-color: var(--color-accent);
+  color: #fff;
+  border: 1px solid var(--color-accent);
+}
+
+.modal-btn-primary:hover {
+  background-color: var(--color-accent-hover);
 }

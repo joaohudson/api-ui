@@ -13,14 +13,24 @@
 //   { type: "form_data", fields: [{ name, value, file_path }] }
 //
 // A exibição da resposta (status, headers, corpo) é responsabilidade da
-// atividade 10. Este módulo apenas dispara a requisição e notifica o
-// restante da aplicação através de `onRequestStateChange`, informando o
-// estado de execução (`running`) e o resultado (`response`/`error`).
+// atividade 10. Este módulo dispara a requisição e notifica o restante da
+// aplicação através de `onRequestStateChange`, informando o estado de
+// execução (`running`) e o resultado (`response`/`error`), junto do
+// `requestId` da requisição salva que foi enviada (`null` se for um
+// rascunho sem requisição selecionada) — usado pelo host (main.js) para
+// manter a resposta de cada requisição associada a ela mesma (fase 3).
+//
+// `loadRequestIntoEditor` (chamado pelo host/main.js ao trocar a seleção na
+// sidebar) troca o rascunho pelos dados da requisição salva escolhida; o
+// botão "Salvar" persiste o rascunho de volta via `update_request` (fase 3),
+// notificando o host através de `onRequestSaved`.
 //
 // O frontend não usa bundler (JS vanilla servido diretamente por
 // `frontendDist`), então em vez de importar o pacote npm `@tauri-apps/api`
 // (especificador "bare" que o navegador não resolve sem import map), usamos
 // a API global exposta pelo Tauri via `app.withGlobalTauri` (tauri.conf.json).
+import { showAlert } from "./modal.js";
+
 function invoke(command, args) {
   return window.__TAURI__.core.invoke(command, args);
 }
@@ -57,42 +67,74 @@ function createEmptyDraft() {
 
 let draft = createEmptyDraft();
 let running = false;
+let saving = false;
 let onRequestStateChange = null;
+let onRequestSaved = null;
+
+/**
+ * Identifica qual requisição salva está carregada no editor no momento
+ * (`requestId`/`collectionId`), para permitir persistir as edições de volta
+ * via `update_request`. `null` quando o editor está com um rascunho vazio
+ * (nenhuma requisição selecionada).
+ */
+let currentMeta = { collectionId: null, requestId: null, name: null };
 
 /** Permite ao host (main.js) reagir ao início/fim da execução da requisição. */
 export function setRequestStateListener(listener) {
   onRequestStateChange = listener;
 }
 
-/** Substitui o rascunho atual (ex.: ao selecionar uma requisição salva). */
-export function loadRequestIntoEditor(requestData) {
-  draft = requestData ? normalizeIncomingRequest(requestData) : createEmptyDraft();
+/** Permite ao host (main.js) reagir a um salvamento bem-sucedido (`update_request`). */
+export function setRequestSavedListener(listener) {
+  onRequestSaved = listener;
+}
+
+/**
+ * Substitui o rascunho atual pelos dados de uma requisição salva (formato
+ * `SavedRequest` do backend), ou limpa o editor se `savedRequest` for
+ * null/undefined (ex.: nenhuma requisição selecionada na sidebar).
+ * `meta.collectionId` é guardado para permitir salvar de volta depois.
+ */
+export function loadRequestIntoEditor(savedRequest, meta = {}) {
+  if (savedRequest) {
+    draft = normalizeIncomingRequest(savedRequest);
+    currentMeta = {
+      collectionId: meta.collectionId || null,
+      requestId: savedRequest.id,
+      name: savedRequest.name,
+    };
+  } else {
+    draft = createEmptyDraft();
+    currentMeta = { collectionId: meta.collectionId || null, requestId: null, name: null };
+  }
   renderRequestEditor();
 }
 
 function normalizeIncomingRequest(data) {
   const empty = createEmptyDraft();
+  const body = data.body || { type: "none" };
   return {
     method: data.method || empty.method,
     url: data.url || "",
-    queryParams: toRowList(data.queryParams),
-    pathParams: toRowList(data.pathParams),
-    headers: toRowList(data.headers),
-    bodyType: data.bodyType || "none",
-    bodyRaw: data.bodyRaw || "",
-    bodyFormUrlEncoded: toRowList(data.bodyFormUrlEncoded),
-    bodyFormData: toFormDataRowList(data.bodyFormData),
+    queryParams: pairsToRowList(data.query_params),
+    pathParams: pairsToRowList(data.path_params),
+    headers: pairsToRowList(data.headers),
+    bodyType: body.type || "none",
+    bodyRaw: body.type === "raw" ? body.content || "" : "",
+    bodyFormUrlEncoded:
+      body.type === "form_urlencoded" ? pairsToRowList(body.fields) : empty.bodyFormUrlEncoded,
+    bodyFormData: body.type === "form_data" ? formDataFieldsToRowList(body.fields) : empty.bodyFormData,
   };
 }
 
-function toRowList(rows) {
-  if (!rows || rows.length === 0) return [{ key: "", value: "" }];
-  return rows.map((r) => ({ key: r.key || "", value: r.value || "" }));
+function pairsToRowList(pairs) {
+  if (!pairs || pairs.length === 0) return [{ key: "", value: "" }];
+  return pairs.map(([key, value]) => ({ key: key || "", value: value || "" }));
 }
 
-function toFormDataRowList(rows) {
-  if (!rows || rows.length === 0) return [{ name: "", value: "", filePath: "" }];
-  return rows.map((r) => ({ name: r.name || "", value: r.value || "", filePath: r.filePath || "" }));
+function formDataFieldsToRowList(fields) {
+  if (!fields || fields.length === 0) return [{ name: "", value: "", filePath: "" }];
+  return fields.map((f) => ({ name: f.name || "", value: f.value || "", filePath: f.file_path || "" }));
 }
 
 function containsVariable(text) {
@@ -323,14 +365,19 @@ function buildHttpRequestInput() {
 async function handleSendRequest() {
   if (running) return;
   running = true;
-  notifyStateChange({ running: true });
+  // Capturado no início: se o usuário trocar a requisição selecionada
+  // enquanto esta ainda está em voo, a resposta deve continuar associada à
+  // requisição que foi de fato enviada, não à que estiver selecionada quando
+  // a resposta chegar.
+  const requestId = currentMeta.requestId;
+  notifyStateChange({ running: true, requestId });
 
   try {
     const request = buildHttpRequestInput();
     const response = await invoke("execute_http_request", { request });
-    notifyStateChange({ running: false, response });
+    notifyStateChange({ running: false, response, requestId });
   } catch (error) {
-    notifyStateChange({ running: false, error: String(error) });
+    notifyStateChange({ running: false, error: String(error), requestId });
   } finally {
     running = false;
   }
@@ -339,6 +386,57 @@ async function handleSendRequest() {
 function notifyStateChange(payload) {
   if (typeof onRequestStateChange === "function") {
     onRequestStateChange(payload);
+  }
+}
+
+function buildSavedRequestPayload() {
+  return {
+    name: currentMeta.name,
+    method: draft.method,
+    url: draft.url,
+    query_params: rowsToPairs(draft.queryParams),
+    path_params: rowsToPairs(draft.pathParams),
+    headers: rowsToPairs(draft.headers),
+    body: buildRequestBody(),
+  };
+}
+
+async function handleSaveRequest(button) {
+  if (saving || !currentMeta.requestId) return;
+
+  const meta = currentMeta;
+  saving = true;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Salvando...";
+
+  try {
+    const updated = await invoke("update_request", {
+      collectionId: meta.collectionId,
+      requestId: meta.requestId,
+      request: buildSavedRequestPayload(),
+    });
+
+    // Só atualiza o meta ativo se o usuário não trocou de requisição
+    // enquanto o salvamento estava em andamento.
+    if (currentMeta === meta) {
+      currentMeta.name = updated.name;
+    }
+
+    if (typeof onRequestSaved === "function") {
+      onRequestSaved(updated);
+    }
+
+    button.textContent = "Salvo!";
+    setTimeout(() => {
+      button.textContent = originalText;
+    }, 1200);
+  } catch (error) {
+    button.textContent = originalText;
+    await showAlert({ title: "Erro ao salvar requisição", message: String(error) });
+  } finally {
+    saving = false;
+    button.disabled = !currentMeta.requestId;
   }
 }
 
@@ -370,6 +468,17 @@ function buildToolbar() {
   });
   applyVariableIndicator(urlInput);
   toolbar.appendChild(urlInput);
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "save-btn";
+  saveBtn.textContent = "Salvar";
+  saveBtn.disabled = saving || !currentMeta.requestId;
+  saveBtn.title = currentMeta.requestId
+    ? "Salvar alterações nesta requisição"
+    : "Selecione uma requisição salva na sidebar para habilitar o salvamento";
+  saveBtn.addEventListener("click", () => handleSaveRequest(saveBtn));
+  toolbar.appendChild(saveBtn);
 
   const sendBtn = document.createElement("button");
   sendBtn.type = "button";
