@@ -17,6 +17,7 @@ import {
   setRequestStateListener,
   loadRequestIntoEditor,
   setRequestSavedListener,
+  mountGlobalActionBar,
 } from "./request-editor.js";
 import { handleRequestStateChange, renderInitialResponsePanel } from "./response-panel.js";
 import { initResizablePanels } from "./resizable-panels.js";
@@ -342,6 +343,7 @@ function handleRequestSaved(updatedRequest) {
 window.addEventListener("DOMContentLoaded", () => {
   render();
   renderRequestEditor();
+  mountGlobalActionBar();
   renderInitialResponsePanel();
   setRequestStateListener(handleEditorStateChange);
   setRequestSavedListener(handleRequestSaved);

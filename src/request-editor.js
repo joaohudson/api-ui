@@ -30,6 +30,7 @@
 // (especificador "bare" que o navegador não resolve sem import map), usamos
 // a API global exposta pelo Tauri via `app.withGlobalTauri` (tauri.conf.json).
 import { showAlert } from "./modal.js";
+import { showCurlImportDialog } from "./curl-import.js";
 
 function invoke(command, args) {
   return window.__TAURI__.core.invoke(command, args);
@@ -70,6 +71,9 @@ let running = false;
 let saving = false;
 let onRequestStateChange = null;
 let onRequestSaved = null;
+
+/** Aba atualmente selecionada no tab menu de parâmetros (fase 4). */
+let activeParamsTab = "query";
 
 /**
  * Identifica qual requisição salva está carregada no editor no momento
@@ -150,15 +154,18 @@ function applyVariableIndicator(inputEl) {
   inputEl.addEventListener("input", update);
 }
 
-function createRowsSection({ title, description, rows, onAdd, onRemove, onChangeField, fields }) {
+function createRowsSection({ title, description, rows, onAdd, onRemove, onChangeField, fields, showTitle = true }) {
   const section = document.createElement("div");
   section.className = "editor-subsection";
 
   const header = document.createElement("div");
   header.className = "editor-subsection-header";
-  const titleEl = document.createElement("h3");
-  titleEl.textContent = title;
-  header.appendChild(titleEl);
+  if (!showTitle) header.classList.add("editor-subsection-header--tab");
+  if (showTitle) {
+    const titleEl = document.createElement("h3");
+    titleEl.textContent = title;
+    header.appendChild(titleEl);
+  }
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "icon-btn";
@@ -213,10 +220,11 @@ function createRowsSection({ title, description, rows, onAdd, onRemove, onChange
   return section;
 }
 
-function buildKeyValueSection({ title, description, list, keyPlaceholder, valuePlaceholder }) {
+function buildKeyValueSection({ title, description, list, keyPlaceholder, valuePlaceholder, showTitle }) {
   return createRowsSection({
     title,
     description,
+    showTitle,
     rows: list,
     fields: [
       { name: "key", placeholder: keyPlaceholder, trackVariable: true },
@@ -265,13 +273,6 @@ function buildFormDataSection() {
 function buildBodySection() {
   const section = document.createElement("div");
   section.className = "editor-subsection";
-
-  const header = document.createElement("div");
-  header.className = "editor-subsection-header";
-  const titleEl = document.createElement("h3");
-  titleEl.textContent = "Body";
-  header.appendChild(titleEl);
-  section.appendChild(header);
 
   const select = document.createElement("select");
   select.className = "body-type-select";
@@ -440,6 +441,104 @@ async function handleSaveRequest(button) {
   }
 }
 
+/**
+ * Substitui o rascunho atual pelo resultado da importação de um comando
+ * curl (fase 5). `currentMeta` não é tocado: se havia uma requisição salva
+ * selecionada, ela continua associada ao rascunho importado (o botão
+ * "Salvar" segue disponível e grava por cima dela).
+ */
+async function handleImportCurl() {
+  const parsed = await showCurlImportDialog();
+  if (!parsed) return;
+  draft = normalizeIncomingRequest(parsed);
+  renderRequestEditor();
+}
+
+/**
+ * Menu de importação (fase 5): botão de ação (ícone + rótulo, sem borda,
+ * no estilo dos demais itens de action bar) que abre um submenu com as
+ * origens suportadas (hoje só "cURL"). Fechado ao escolher uma opção,
+ * clicar fora ou pressionar Escape — mesmo padrão de fechamento usado
+ * pelos diálogos em modal.js/curl-import.js.
+ */
+function buildImportMenu() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "import-menu";
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "import-menu-trigger";
+  trigger.title = "Importar requisição a partir de outro formato";
+  trigger.innerHTML =
+    '<svg class="import-menu-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
+    '<path fill="currentColor" d="M8 1.5a.75.75 0 0 1 .75.75v6.69l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V2.25A.75.75 0 0 1 8 1.5Z"/>' +
+    '<path fill="currentColor" d="M2.75 9.5a.75.75 0 0 1 .75.75v2A.75.75 0 0 0 4.25 13h7.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 11.75 14.5h-7.5A2.25 2.25 0 0 1 2 12.25v-2a.75.75 0 0 1 .75-.75Z"/>' +
+    "</svg>" +
+    '<span>Importar</span>';
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "import-menu-dropdown";
+  dropdown.hidden = true;
+
+  const curlItem = document.createElement("button");
+  curlItem.type = "button";
+  curlItem.className = "import-menu-item";
+  curlItem.textContent = "cURL";
+  curlItem.title = "Importar um comando curl (estilo Linux) para preencher esta requisição";
+  curlItem.addEventListener("click", () => {
+    closeDropdown();
+    handleImportCurl();
+  });
+  dropdown.appendChild(curlItem);
+
+  function onOutsideClick(event) {
+    if (!wrapper.contains(event.target)) closeDropdown();
+  }
+  function onKeydown(event) {
+    if (event.key === "Escape") closeDropdown();
+  }
+  function closeDropdown() {
+    dropdown.hidden = true;
+    trigger.classList.remove("open");
+    document.removeEventListener("click", onOutsideClick);
+    document.removeEventListener("keydown", onKeydown);
+  }
+  function openDropdown() {
+    dropdown.hidden = false;
+    trigger.classList.add("open");
+    document.addEventListener("click", onOutsideClick);
+    document.addEventListener("keydown", onKeydown);
+  }
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (dropdown.hidden) {
+      openDropdown();
+    } else {
+      closeDropdown();
+    }
+  });
+
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(dropdown);
+  return wrapper;
+}
+
+/**
+ * Monta o menu de importação na action bar global (`#global-action-bar`,
+ * fase 5), a barra fininha com separador visível logo abaixo da barra de
+ * título — fora do toolbar da requisição atual (método/URL/Salvar/Enviar).
+ * Chamado uma única vez pelo host (main.js) no carregamento da página; o
+ * menu não depende do `draft` e não precisa ser reconstruído a cada
+ * `renderRequestEditor`.
+ */
+export function mountGlobalActionBar() {
+  const bar = document.getElementById("global-action-bar");
+  if (!bar) return;
+  bar.innerHTML = "";
+  bar.appendChild(buildImportMenu());
+}
+
 function buildToolbar() {
   const toolbar = document.createElement("div");
   toolbar.className = "editor-toolbar";
@@ -491,6 +590,79 @@ function buildToolbar() {
   return toolbar;
 }
 
+function buildParamsTabsSection() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "editor-tabs";
+
+  const tabButtons = document.createElement("div");
+  tabButtons.className = "editor-tab-buttons";
+
+  const tabPanels = document.createElement("div");
+  tabPanels.className = "editor-tab-panels";
+
+  const tabs = [
+    {
+      id: "query",
+      label: "Query Params",
+      panel: buildKeyValueSection({
+        title: "Query Params",
+        showTitle: false,
+        list: draft.queryParams,
+        keyPlaceholder: "chave",
+        valuePlaceholder: "valor",
+      }),
+    },
+    {
+      id: "path",
+      label: "Path Params",
+      panel: buildKeyValueSection({
+        title: "Path Params",
+        showTitle: false,
+        description: "Use {nome} na URL para indicar onde o valor será inserido.",
+        list: draft.pathParams,
+        keyPlaceholder: "nome",
+        valuePlaceholder: "valor",
+      }),
+    },
+    {
+      id: "headers",
+      label: "Headers",
+      panel: buildKeyValueSection({
+        title: "Headers",
+        showTitle: false,
+        list: draft.headers,
+        keyPlaceholder: "chave",
+        valuePlaceholder: "valor",
+      }),
+    },
+    { id: "body", label: "Body", panel: buildBodySection() },
+  ];
+
+  tabs.forEach((tab) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "editor-tab-btn";
+    btn.textContent = tab.label;
+    if (tab.id === activeParamsTab) btn.classList.add("active");
+    btn.addEventListener("click", () => {
+      activeParamsTab = tab.id;
+      tabButtons.querySelectorAll(".editor-tab-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      tabPanels.querySelectorAll(".editor-tab-panel").forEach((p) => p.classList.remove("active"));
+      tab.panel.classList.add("active");
+    });
+    tabButtons.appendChild(btn);
+
+    tab.panel.classList.add("editor-tab-panel");
+    if (tab.id === activeParamsTab) tab.panel.classList.add("active");
+    tabPanels.appendChild(tab.panel);
+  });
+
+  wrapper.appendChild(tabButtons);
+  wrapper.appendChild(tabPanels);
+  return wrapper;
+}
+
 export function renderRequestEditor() {
   const container = document.getElementById("request-editor");
   if (!container) return;
@@ -502,36 +674,7 @@ export function renderRequestEditor() {
   form.className = "request-editor-form";
 
   form.appendChild(buildToolbar());
-
-  form.appendChild(
-    buildKeyValueSection({
-      title: "Query Params",
-      list: draft.queryParams,
-      keyPlaceholder: "chave",
-      valuePlaceholder: "valor",
-    })
-  );
-
-  form.appendChild(
-    buildKeyValueSection({
-      title: "Path Params",
-      description: "Use {nome} na URL para indicar onde o valor será inserido.",
-      list: draft.pathParams,
-      keyPlaceholder: "nome",
-      valuePlaceholder: "valor",
-    })
-  );
-
-  form.appendChild(
-    buildKeyValueSection({
-      title: "Headers",
-      list: draft.headers,
-      keyPlaceholder: "chave",
-      valuePlaceholder: "valor",
-    })
-  );
-
-  form.appendChild(buildBodySection());
+  form.appendChild(buildParamsTabsSection());
 
   container.appendChild(form);
 }
