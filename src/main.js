@@ -13,6 +13,7 @@
 // objetos no formato { id, name, requests: [{ id, name }] }.
 import { renderRequestEditor, setRequestStateListener } from "./request-editor.js";
 import { handleRequestStateChange, renderInitialResponsePanel } from "./response-panel.js";
+import { initResizablePanels } from "./resizable-panels.js";
 
 const state = {
   collections: [],
@@ -112,5 +113,6 @@ window.addEventListener("DOMContentLoaded", () => {
   renderRequestEditor();
   renderInitialResponsePanel();
   setRequestStateListener(handleRequestStateChange);
+  initResizablePanels();
   console.log("API UI iniciado.");
 });

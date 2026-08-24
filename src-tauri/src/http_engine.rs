@@ -56,6 +56,7 @@ pub struct FormDataField {
 pub enum RequestBody {
     None,
     Raw { content: String },
+    #[serde(rename = "form_urlencoded")]
     FormUrlEncoded { fields: Vec<(String, String)> },
     FormData { fields: Vec<FormDataField> },
 }
