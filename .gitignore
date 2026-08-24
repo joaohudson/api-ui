@@ -1,0 +1,10 @@
+# Node
+node_modules/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Sistema
+.DS_Store
+*.log

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Client</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="app-header">
+      <h1>API Client</h1>
+    </header>
+
+    <div id="app-body">
+      <aside id="sidebar">
+        <div id="sidebar-collections-section" class="sidebar-section">
+          <div class="sidebar-section-header">
+            <h2>Coleções</h2>
+            <button id="new-collection-btn" class="icon-btn" type="button" title="Nova coleção">+</button>
+          </div>
+          <ul id="collections-list" class="collections-list">
+            <!-- Preenchido dinamicamente pela atividade 5 (gerenciamento de coleções). -->
+          </ul>
+          <p id="collections-empty-state" class="empty-state">
+            Nenhuma coleção criada ainda.
+          </p>
+        </div>
+
+        <div id="sidebar-requests-section" class="sidebar-section">
+          <div class="sidebar-section-header">
+            <h2>Requisições</h2>
+            <button id="new-request-btn" class="icon-btn" type="button" title="Nova requisição" disabled>+</button>
+          </div>
+          <ul id="requests-list" class="requests-list">
+            <!-- Preenchido dinamicamente pela atividade 5, a partir da coleção selecionada. -->
+          </ul>
+          <p id="requests-empty-state" class="empty-state">
+            Selecione uma coleção para ver suas requisições.
+          </p>
+        </div>
+      </aside>
+
+      <main id="main-area">
+        <section id="request-editor" class="panel" aria-label="Editor de requisição">
+          <p class="empty-state">
+            Selecione ou crie uma requisição para começar a editar.
+          </p>
+        </section>
+
+        <section id="response-panel" class="panel" aria-label="Resposta da requisição">
+          <p class="empty-state">
+            A resposta da requisição aparecerá aqui após o envio.
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
