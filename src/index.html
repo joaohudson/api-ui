@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>API UI</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="vendor/codemirror/lib/codemirror.css" />
 </head>
 <body>
   <div id="app">
@@ -90,6 +91,10 @@
     </div>
   </div>
 
+  <script src="vendor/codemirror/lib/codemirror.js"></script>
+  <script src="vendor/codemirror/mode/javascript/javascript.js"></script>
+  <script src="vendor/codemirror/addon/edit/matchbrackets.js"></script>
+  <script src="vendor/codemirror/addon/edit/closebrackets.js"></script>
   <script type="module" src="main.js"></script>
 </body>
 </html>

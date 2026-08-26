@@ -4,7 +4,7 @@
 //! - `HttpRequestInput`: entrada com método, URL (podendo conter placeholders
 //!   `{param}` substituídos por `path_params`), query params, headers e body.
 //! - `RequestBody`: enum serializado por tag `type` (none/raw/form_urlencoded/
-//!   form_data) representando os formatos de body suportados nesta fase.
+//!   form_data/json) representando os formatos de body suportados nesta fase.
 //! - `HttpResponseOutput`: saída padronizada, sempre retornada (nunca panic),
 //!   com `error` preenchido em caso de falha de rede/timeout/URL inválida.
 
@@ -59,6 +59,7 @@ pub enum RequestBody {
     #[serde(rename = "form_urlencoded")]
     FormUrlEncoded { fields: Vec<(String, String)> },
     FormData { fields: Vec<FormDataField> },
+    Json { content: String },
 }
 
 impl Default for RequestBody {
@@ -163,6 +164,7 @@ fn apply_body(
             }
             Ok(builder.multipart(form))
         }
+        RequestBody::Json { content } => Ok(builder.body(content.clone())),
     }
 }
 
@@ -198,6 +200,12 @@ pub async fn execute_request(input: HttpRequestInput) -> HttpResponseOutput {
 
     for (key, value) in &input.headers {
         builder = builder.header(key.as_str(), value.as_str());
+    }
+
+    if matches!(input.body, RequestBody::Json { .. })
+        && !input.headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+    {
+        builder = builder.header("Content-Type", "application/json");
     }
 
     builder = match apply_body(builder, &input.body) {
@@ -326,6 +334,53 @@ mod tests {
         // garantimos que o erro foi tratado de forma estruturada.
         if output.error.is_none() {
             assert_eq!(output.status, 200);
+        }
+    }
+
+    #[tokio::test]
+    async fn injeta_content_type_json_automaticamente_quando_ausente() {
+        let input = HttpRequestInput {
+            method: HttpMethod::Post,
+            url: "https://httpbin.org/post".to_string(),
+            query_params: vec![],
+            path_params: vec![],
+            headers: vec![],
+            body: RequestBody::Json {
+                content: "{\"a\":1}".to_string(),
+            },
+            timeout_ms: Some(10_000),
+        };
+        let output = execute_request(input).await;
+        // Ambiente de CI pode não ter acesso à internet; nesse caso apenas
+        // garantimos que o erro foi tratado de forma estruturada.
+        if output.error.is_none() {
+            assert_eq!(output.status, 200);
+            assert!(output.body.contains("\"Content-Type\": \"application/json\""));
+        }
+    }
+
+    #[tokio::test]
+    async fn preserva_content_type_manual_com_body_json() {
+        let input = HttpRequestInput {
+            method: HttpMethod::Post,
+            url: "https://httpbin.org/post".to_string(),
+            query_params: vec![],
+            path_params: vec![],
+            headers: vec![(
+                "Content-Type".to_string(),
+                "application/json; charset=utf-8".to_string(),
+            )],
+            body: RequestBody::Json {
+                content: "{\"a\":1}".to_string(),
+            },
+            timeout_ms: Some(10_000),
+        };
+        let output = execute_request(input).await;
+        if output.error.is_none() {
+            assert_eq!(output.status, 200);
+            assert!(output
+                .body
+                .contains("\"Content-Type\": \"application/json; charset=utf-8\""));
         }
     }
 }

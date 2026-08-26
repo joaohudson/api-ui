@@ -11,6 +11,7 @@
 //   { type: "raw", content: "..." }
 //   { type: "form_urlencoded", fields: [[k,v],...] }
 //   { type: "form_data", fields: [{ name, value, file_path }] }
+//   { type: "json", content: "..." }
 //
 // A exibição da resposta (status, headers, corpo) é responsabilidade da
 // atividade 10. Este módulo dispara a requisição e notifica o restante da
@@ -31,6 +32,7 @@
 // a API global exposta pelo Tauri via `app.withGlobalTauri` (tauri.conf.json).
 import { showAlert } from "./modal.js";
 import { showCurlImportDialog } from "./curl-import.js";
+import { createJsonBodyEditor, formatJson } from "./json-body-editor.js";
 
 function invoke(command, args) {
   return window.__TAURI__.core.invoke(command, args);
@@ -41,6 +43,7 @@ const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"
 const BODY_TYPES = [
   { value: "none", label: "none" },
   { value: "raw", label: "raw" },
+  { value: "json", label: "JSON" },
   { value: "form_urlencoded", label: "x-www-form-urlencoded" },
   { value: "form_data", label: "form-data" },
 ];
@@ -61,6 +64,7 @@ function createEmptyDraft() {
     headers: [{ key: "", value: "" }],
     bodyType: "none",
     bodyRaw: "",
+    bodyJson: "",
     bodyFormUrlEncoded: [{ key: "", value: "" }],
     bodyFormData: [{ name: "", value: "", filePath: "" }],
   };
@@ -125,6 +129,7 @@ function normalizeIncomingRequest(data) {
     headers: pairsToRowList(data.headers),
     bodyType: body.type || "none",
     bodyRaw: body.type === "raw" ? body.content || "" : "",
+    bodyJson: body.type === "json" ? body.content || "" : empty.bodyJson,
     bodyFormUrlEncoded:
       body.type === "form_urlencoded" ? pairsToRowList(body.fields) : empty.bodyFormUrlEncoded,
     bodyFormData: body.type === "form_data" ? formDataFieldsToRowList(body.fields) : empty.bodyFormData,
@@ -270,6 +275,71 @@ function buildFormDataSection() {
   });
 }
 
+function buildJsonBodySection() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "json-body-editor-wrapper";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "json-body-toolbar";
+  const formatBtn = document.createElement("button");
+  formatBtn.type = "button";
+  formatBtn.className = "json-format-btn";
+  formatBtn.textContent = "Formatar JSON";
+  toolbar.appendChild(formatBtn);
+  wrapper.appendChild(toolbar);
+
+  const errorEl = document.createElement("p");
+  errorEl.className = "json-body-error";
+  errorEl.hidden = true;
+  wrapper.appendChild(errorEl);
+
+  const editorContainer = document.createElement("div");
+  editorContainer.className = "json-body-editor";
+  wrapper.appendChild(editorContainer);
+
+  wrapper.classList.toggle("has-variable", containsVariable(draft.bodyJson));
+
+  const editor = createJsonBodyEditor({
+    container: editorContainer,
+    value: draft.bodyJson,
+    onChange: (value) => {
+      draft.bodyJson = value;
+      wrapper.classList.toggle("has-variable", containsVariable(value));
+    },
+  });
+
+  formatBtn.addEventListener("click", () => {
+    try {
+      const formatted = formatJson(editor.getValue());
+      editor.setValue(formatted);
+      draft.bodyJson = formatted;
+      errorEl.hidden = true;
+    } catch (e) {
+      errorEl.textContent = "JSON inválido: " + e.message;
+      errorEl.hidden = false;
+    }
+  });
+
+  return wrapper;
+}
+
+/**
+ * "raw" e "json" são os dois tipos de body em texto livre — ao trocar entre
+ * eles, o texto já digitado deve ser transportado (não perdido), já que na
+ * prática representam o mesmo conteúdo em edições diferentes (textarea vs.
+ * editor com highlighting). Trocas envolvendo outros tipos não sincronizam.
+ */
+function syncBodyTextOnTypeChange(oldType, newType) {
+  const isFreeText = (t) => t === "raw" || t === "json";
+  if (!isFreeText(oldType) || !isFreeText(newType) || oldType === newType) return;
+  const text = oldType === "raw" ? draft.bodyRaw : draft.bodyJson;
+  if (newType === "raw") {
+    draft.bodyRaw = text;
+  } else {
+    draft.bodyJson = text;
+  }
+}
+
 function buildBodySection() {
   const section = document.createElement("div");
   section.className = "editor-subsection";
@@ -284,7 +354,9 @@ function buildBodySection() {
     select.appendChild(option);
   }
   select.addEventListener("change", (e) => {
-    draft.bodyType = e.target.value;
+    const newType = e.target.value;
+    syncBodyTextOnTypeChange(draft.bodyType, newType);
+    draft.bodyType = newType;
     renderRequestEditor();
   });
   section.appendChild(select);
@@ -306,6 +378,8 @@ function buildBodySection() {
     });
     textarea.classList.toggle("has-variable", containsVariable(textarea.value));
     section.appendChild(textarea);
+  } else if (draft.bodyType === "json") {
+    section.appendChild(buildJsonBodySection());
   } else if (draft.bodyType === "form_urlencoded") {
     section.appendChild(
       buildKeyValueSection({
@@ -332,6 +406,8 @@ function buildRequestBody() {
   switch (draft.bodyType) {
     case "raw":
       return { type: "raw", content: draft.bodyRaw };
+    case "json":
+      return { type: "json", content: draft.bodyJson };
     case "form_urlencoded":
       return { type: "form_urlencoded", fields: rowsToPairs(draft.bodyFormUrlEncoded) };
     case "form_data":

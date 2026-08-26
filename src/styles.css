@@ -408,6 +408,109 @@ button {
   background-color: rgba(30, 110, 168, 0.1);
 }
 
+/* Editor de body JSON (fase 6) */
+
+.json-body-editor-wrapper {
+  margin-top: 0.6rem;
+}
+
+.json-body-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.4rem;
+}
+
+.json-format-btn {
+  background-color: var(--color-bg-panel);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.json-format-btn:hover {
+  border-color: var(--color-accent);
+}
+
+.json-body-error {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  margin: -0.2rem 0 0.5rem;
+}
+
+.json-body-editor {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.json-body-editor-wrapper.has-variable .json-body-editor {
+  border-color: var(--color-accent);
+  background-color: rgba(30, 110, 168, 0.1);
+}
+
+.json-body-editor .CodeMirror {
+  height: auto;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+/*
+ * min-height/max-height precisam ficar no .CodeMirror-scroll (scroller
+ * interno), não no .CodeMirror (wrapper externo). O CodeMirror esconde sua
+ * scrollbar nativa real deslocando .CodeMirror-scroll 50px para fora
+ * (margin-bottom/-right negativos + padding-bottom) e recortando esse
+ * excesso com "overflow: hidden" no wrapper — recorte que só funciona se o
+ * wrapper tiver altura própria e fixa. Com "height: auto" no wrapper (para
+ * o editor crescer com o conteúdo), definir min/max-height nele também
+ * quebra esse recorte: a faixa nativa da scrollbar (sem tema, por isso
+ * aparece branca) deixa de ser escondida e vaza visualmente — mesmo sem
+ * necessidade real de rolagem horizontal (lineWrapping está ativo).
+ * Colocando os limites no scroller, ele volta a ter uma altura própria e
+ * o recorte do wrapper funciona corretamente de novo.
+ */
+.json-body-editor .CodeMirror-scroll {
+  min-height: 136px;
+  max-height: 420px;
+}
+
+/*
+ * Camada extra de segurança: mesmo com o fix acima, força as scrollbars
+ * "falsas" (desenhadas pela lib por cima da nativa, para o usuário
+ * interagir) a ficarem consistentes com o tema escuro.
+ */
+.json-body-editor .CodeMirror-hscrollbar {
+  display: none !important;
+}
+.cm-s-apiui .CodeMirror-scrollbar-filler,
+.cm-s-apiui .CodeMirror-gutter-filler {
+  background-color: var(--color-bg);
+}
+
+.cm-s-apiui.CodeMirror {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.cm-s-apiui .CodeMirror-gutters {
+  background: var(--color-bg-panel);
+  border-right: 1px solid var(--color-border);
+}
+.cm-s-apiui .CodeMirror-linenumber {
+  color: var(--color-text-muted);
+}
+.cm-s-apiui .CodeMirror-cursor {
+  border-left: 1px solid var(--color-text);
+}
+.cm-s-apiui .cm-string { color: #ce9178; }
+.cm-s-apiui .cm-number { color: #b5cea8; }
+.cm-s-apiui .cm-atom { color: #569cd6; }
+.cm-s-apiui .cm-property { color: #9cdcfe; }
+.cm-s-apiui .cm-punctuation { color: var(--color-text-muted); }
+.cm-s-apiui .CodeMirror-matchingbracket {
+  color: var(--color-accent-hover);
+  font-weight: bold;
+}
+
 /* Tabs de parâmetros do editor (fase 4) */
 
 .editor-tabs {
