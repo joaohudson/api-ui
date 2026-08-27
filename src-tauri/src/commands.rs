@@ -9,6 +9,7 @@ use crate::collections::{self, CollectionsError, SavedRequestInput};
 use crate::environments::{self, Environment, EnvironmentsError};
 use crate::export::{self, ExportError};
 use crate::http_engine::{self, HttpMethod, HttpRequestInput, HttpResponseOutput, RequestBody};
+use crate::import::{self, ImportError};
 use crate::models::{Collection, SavedRequest};
 
 /// Comando Tauri que executa uma requisição HTTP a partir dos dados enviados
@@ -45,6 +46,14 @@ impl From<EnvironmentsError> for CommandError {
 
 impl From<ExportError> for CommandError {
     fn from(err: ExportError) -> Self {
+        CommandError {
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<ImportError> for CommandError {
+    fn from(err: ImportError) -> Self {
         CommandError {
             message: err.to_string(),
         }
@@ -276,4 +285,12 @@ pub async fn export_collection_to_json(
     collection_id: String,
 ) -> CommandResult<Option<String>> {
     Ok(export::export_collection_to_json(&app, &collection_id).await?)
+}
+
+/// Importa uma coleção a partir de um arquivo JSON escolhido pelo usuário via
+/// diálogo nativo. Cria sempre uma coleção nova (ids regenerados). Retorna
+/// `None` se o usuário cancelar o diálogo, ou a coleção criada.
+#[tauri::command]
+pub async fn import_collection_from_json(app: AppHandle) -> CommandResult<Option<Collection>> {
+    Ok(import::import_collection_from_json(&app).await?)
 }

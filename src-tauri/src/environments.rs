@@ -93,6 +93,15 @@ pub fn create_environment(
     Ok(environment)
 }
 
+/// Persiste um ambiente já montado (ex.: vindo da importação de uma coleção),
+/// gravando/sobrescrevendo o arquivo `environments/<id>.json`. Não mexe na
+/// `Collection` — quem chama é responsável por manter
+/// `Collection::environments.environment_ids` coerente.
+pub fn save_environment(app: &AppHandle, environment: &Environment) -> Result<()> {
+    persistence::write_json(app, &environment_path(&environment.id), environment)?;
+    Ok(())
+}
+
 /// Lista todos os ambientes de uma coleção.
 pub fn list_environments(app: &AppHandle, collection_id: &str) -> Result<Vec<Environment>> {
     let collection = collections::get_collection(app, collection_id)?;

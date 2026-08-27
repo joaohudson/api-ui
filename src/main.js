@@ -22,6 +22,11 @@ import {
 import { handleRequestStateChange, renderInitialResponsePanel } from "./response-panel.js";
 import { initResizablePanels } from "./resizable-panels.js";
 import { showPrompt, showAlert, showConfirm } from "./modal.js";
+import {
+  importCollectionFromJson,
+  exportCollectionToJson,
+  buildCollectionExportMenu,
+} from "./collection-transfer.js";
 
 function invoke(command, args) {
   return window.__TAURI__.core.invoke(command, args);
@@ -119,6 +124,17 @@ function renderCollectionsList() {
     nameEl.textContent = collection.name;
     li.appendChild(nameEl);
 
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "list-item-edit-btn";
+    editBtn.title = "Editar nome da coleção";
+    editBtn.textContent = "✎";
+    editBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      renameCollection(collection.id, collection.name);
+    });
+    li.appendChild(editBtn);
+
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
     deleteBtn.className = "list-item-delete-btn";
@@ -190,9 +206,46 @@ function renderRequestsList() {
   }
 }
 
+/**
+ * (Re)monta a action bar global: o menu "Importar" (com o item extra de
+ * importação de coleção) e o menu "Exportação", cujo rótulo/estado depende da
+ * coleção selecionada — por isso é reconstruído a cada `render()`.
+ */
+function renderActionBar() {
+  mountGlobalActionBar({
+    extraImportItems: [
+      {
+        label: "Coleção (JSON)",
+        title: "Importar uma coleção de um arquivo JSON exportado pelo API UI",
+        onSelect: handleImportCollection,
+      },
+    ],
+    exportMenu: buildCollectionExportMenu({
+      collection: getSelectedCollection(),
+      onExport: handleExportCollection,
+    }),
+  });
+}
+
 function render() {
   renderCollectionsList();
   renderRequestsList();
+  renderActionBar();
+}
+
+async function handleImportCollection() {
+  const collection = await importCollectionFromJson();
+  if (!collection) return; // cancelado ou erro (já alertado)
+  state.collections.push(collection);
+  state.selectedCollectionId = collection.id;
+  state.selectedRequestId = null;
+  render();
+  syncEditorWithSelection();
+}
+
+async function handleExportCollection(collection) {
+  if (!collection) return;
+  await exportCollectionToJson(collection.id);
 }
 
 async function loadCollections() {
@@ -255,6 +308,36 @@ async function deleteCollection(collectionId, collectionName) {
     syncEditorWithSelection();
   } catch (error) {
     await showAlert({ title: "Erro ao excluir coleção", message: String(error) });
+  }
+}
+
+async function renameCollection(collectionId, currentName) {
+  const name = await showPrompt({
+    title: "Editar nome da coleção",
+    message: "Informe o novo nome da coleção.",
+    placeholder: "Nome da coleção",
+    inputValue: currentName,
+    confirmLabel: "Salvar",
+  });
+
+  if (name === null) {
+    return;
+  }
+
+  const trimmedName = name.trim();
+  if (trimmedName === "" || trimmedName === currentName) {
+    return;
+  }
+
+  try {
+    const updated = await invoke("rename_collection", { id: collectionId, name: trimmedName });
+    const collection = state.collections.find((c) => c.id === collectionId);
+    if (collection) {
+      collection.name = updated.name;
+    }
+    render();
+  } catch (error) {
+    await showAlert({ title: "Erro ao renomear coleção", message: String(error) });
   }
 }
 
@@ -343,7 +426,6 @@ function handleRequestSaved(updatedRequest) {
 window.addEventListener("DOMContentLoaded", () => {
   render();
   renderRequestEditor();
-  mountGlobalActionBar();
   renderInitialResponsePanel();
   setRequestStateListener(handleEditorStateChange);
   setRequestSavedListener(handleRequestSaved);

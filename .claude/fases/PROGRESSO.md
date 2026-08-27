@@ -7,3 +7,4 @@
 - Fase 5 - Concluída
 - Fase 6 - Concluída
 - Fase 7 - Concluída
+- Fase 8 - Concluída

@@ -3,6 +3,7 @@ mod commands;
 mod environments;
 mod export;
 mod http_engine;
+mod import;
 mod models;
 mod persistence;
 
@@ -29,6 +30,7 @@ pub fn run() {
             commands::set_active_environment,
             commands::get_active_environment,
             commands::export_collection_to_json,
+            commands::import_collection_from_json,
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar a aplicacao Tauri");

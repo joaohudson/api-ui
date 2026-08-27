@@ -13,7 +13,7 @@ Sem login. Sem nuvem. Sem coleta de dados. Tudo o que você cria fica salvo loca
 - **100% offline** — nenhuma dependência de conta, servidor remoto ou sincronização. Os dados não saem da sua máquina.
 - **Leve e nativo** — construído com Tauri, o app roda como um binário nativo compacto, sem o peso de rodar um navegador Chromium embutido (como em soluções baseadas em Electron).
 - **Simples por design** — sem excesso de funcionalidades. O foco é o essencial de um cliente de API: montar requisições, organizá-las em coleções e ver a resposta.
-- **Dados 100% seus** — coleções, requisições e variáveis de ambiente ficam salvas localmente e podem ser exportadas em JSON quando quiser.
+- **Dados 100% seus** — coleções, requisições e variáveis de ambiente ficam salvas localmente e podem ser exportadas e reimportadas em JSON quando quiser.
 
 ## Funcionalidades
 
@@ -24,9 +24,9 @@ Sem login. Sem nuvem. Sem coleta de dados. Tudo o que você cria fica salvo loca
 - Organização das requisições em coleções, com criação, edição e remoção.
 - Variáveis de ambiente por coleção (com múltiplos ambientes, como dev/staging/prod, e apenas um ativo por vez), usadas via `{{variavel}}` na URL, headers ou body.
 - Painéis redimensionáveis, com o layout preservado entre sessões.
-- Exportação de coleções para arquivo JSON.
+- Exportação de uma coleção para arquivo JSON (com requisições, ambientes e variáveis) e importação de volta a partir desse mesmo arquivo, escolhendo a pasta/arquivo por um diálogo nativo.
 
-Funcionalidades como scripts de pré-requisição, autenticação avançada (OAuth etc.), mock servers, GraphQL/WebSocket e importação de coleções de outras ferramentas fazem parte de um escopo futuro, ainda não implementado.
+Funcionalidades como scripts de pré-requisição, autenticação avançada (OAuth etc.), mock servers, GraphQL/WebSocket e importação de coleções de outras ferramentas (Postman, Insomnia, etc.) fazem parte de um escopo futuro, ainda não implementado.
 
 ## Tecnologias
 

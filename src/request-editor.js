@@ -33,6 +33,16 @@
 import { showAlert } from "./modal.js";
 import { showCurlImportDialog } from "./curl-import.js";
 import { createJsonBodyEditor, formatJson } from "./json-body-editor.js";
+import { buildActionMenu } from "./action-menu.js";
+
+// Ícone (currentColor) do gatilho "Importar" — seta para baixo entrando numa
+// bandeja. Extraído para constante ao migrar `buildImportMenu` para
+// `buildActionMenu`.
+const ICON_IMPORT =
+  '<svg class="action-menu-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
+  '<path fill="currentColor" d="M8 1.5a.75.75 0 0 1 .75.75v6.69l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V2.25A.75.75 0 0 1 8 1.5Z"/>' +
+  '<path fill="currentColor" d="M2.75 9.5a.75.75 0 0 1 .75.75v2A.75.75 0 0 0 4.25 13h7.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 11.75 14.5h-7.5A2.25 2.25 0 0 1 2 12.25v-2a.75.75 0 0 1 .75-.75Z"/>' +
+  "</svg>";
 
 function invoke(command, args) {
   return window.__TAURI__.core.invoke(command, args);
@@ -577,88 +587,48 @@ async function handleImportCurl() {
 }
 
 /**
- * Menu de importação (fase 5): botão de ação (ícone + rótulo, sem borda,
+ * Menu de importação (fase 5): gatilho de ação (ícone + rótulo, sem borda,
  * no estilo dos demais itens de action bar) que abre um submenu com as
- * origens suportadas (hoje só "cURL"). Fechado ao escolher uma opção,
- * clicar fora ou pressionar Escape — mesmo padrão de fechamento usado
- * pelos diálogos em modal.js/curl-import.js.
+ * origens suportadas. O primeiro item é sempre "cURL" (preenche o rascunho
+ * do editor); `extraItems` adiciona itens ao fim do dropdown (fase 8: a
+ * importação de coleção, cuja lógica vive no host/main.js).
  */
-function buildImportMenu() {
-  const wrapper = document.createElement("div");
-  wrapper.className = "import-menu";
-
-  const trigger = document.createElement("button");
-  trigger.type = "button";
-  trigger.className = "import-menu-trigger";
-  trigger.title = "Importar requisição a partir de outro formato";
-  trigger.innerHTML =
-    '<svg class="import-menu-icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
-    '<path fill="currentColor" d="M8 1.5a.75.75 0 0 1 .75.75v6.69l1.72-1.72a.75.75 0 1 1 1.06 1.06l-3 3a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06l1.72 1.72V2.25A.75.75 0 0 1 8 1.5Z"/>' +
-    '<path fill="currentColor" d="M2.75 9.5a.75.75 0 0 1 .75.75v2A.75.75 0 0 0 4.25 13h7.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 11.75 14.5h-7.5A2.25 2.25 0 0 1 2 12.25v-2a.75.75 0 0 1 .75-.75Z"/>' +
-    "</svg>" +
-    '<span>Importar</span>';
-
-  const dropdown = document.createElement("div");
-  dropdown.className = "import-menu-dropdown";
-  dropdown.hidden = true;
-
-  const curlItem = document.createElement("button");
-  curlItem.type = "button";
-  curlItem.className = "import-menu-item";
-  curlItem.textContent = "cURL";
-  curlItem.title = "Importar um comando curl (estilo Linux) para preencher esta requisição";
-  curlItem.addEventListener("click", () => {
-    closeDropdown();
-    handleImportCurl();
+function buildImportMenu(extraItems = []) {
+  return buildActionMenu({
+    label: "Importar",
+    title: "Importar requisição ou coleção a partir de outro formato",
+    iconSvg: ICON_IMPORT,
+    items: [
+      {
+        label: "cURL",
+        title: "Importar um comando curl (estilo Linux) para preencher esta requisição",
+        onSelect: () => handleImportCurl(),
+      },
+      ...extraItems,
+    ],
   });
-  dropdown.appendChild(curlItem);
-
-  function onOutsideClick(event) {
-    if (!wrapper.contains(event.target)) closeDropdown();
-  }
-  function onKeydown(event) {
-    if (event.key === "Escape") closeDropdown();
-  }
-  function closeDropdown() {
-    dropdown.hidden = true;
-    trigger.classList.remove("open");
-    document.removeEventListener("click", onOutsideClick);
-    document.removeEventListener("keydown", onKeydown);
-  }
-  function openDropdown() {
-    dropdown.hidden = false;
-    trigger.classList.add("open");
-    document.addEventListener("click", onOutsideClick);
-    document.addEventListener("keydown", onKeydown);
-  }
-
-  trigger.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (dropdown.hidden) {
-      openDropdown();
-    } else {
-      closeDropdown();
-    }
-  });
-
-  wrapper.appendChild(trigger);
-  wrapper.appendChild(dropdown);
-  return wrapper;
 }
 
 /**
- * Monta o menu de importação na action bar global (`#global-action-bar`,
- * fase 5), a barra fininha com separador visível logo abaixo da barra de
- * título — fora do toolbar da requisição atual (método/URL/Salvar/Enviar).
- * Chamado uma única vez pelo host (main.js) no carregamento da página; o
- * menu não depende do `draft` e não precisa ser reconstruído a cada
- * `renderRequestEditor`.
+ * (Re)monta a action bar global (`#global-action-bar`, fase 5), a barra
+ * fininha logo abaixo da barra de título — fora do toolbar da requisição
+ * atual (método/URL/Salvar/Enviar). Chamado pelo host (main.js) no load e
+ * sempre que a seleção de coleção muda (o menu de exportação da fase 8
+ * reflete a coleção atual). Faz `bar.innerHTML = ""`, então pode ser
+ * chamado quantas vezes for preciso.
+ *
+ * @param {object}       [opts]
+ * @param {Array<{label: string, title?: string, onSelect: () => void}>} [opts.extraImportItems]
+ *        itens extras no fim do dropdown "Importar" (após "cURL").
+ * @param {HTMLElement}  [opts.exportMenu]
+ *        nó de menu já montado, anexado após o menu "Importar".
  */
-export function mountGlobalActionBar() {
+export function mountGlobalActionBar({ extraImportItems = [], exportMenu = null } = {}) {
   const bar = document.getElementById("global-action-bar");
   if (!bar) return;
   bar.innerHTML = "";
-  bar.appendChild(buildImportMenu());
+  bar.appendChild(buildImportMenu(extraImportItems));
+  if (exportMenu) bar.appendChild(exportMenu);
 }
 
 function buildToolbar() {

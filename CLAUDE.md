@@ -31,9 +31,10 @@ Alternativa ao Postman, totalmente offline, sem dependência de conta, nuvem ou 
 - Uso das variáveis via sintaxe `{{variavel}}` em URL, headers e body.
 - Cada coleção pode ter múltiplos ambientes (ex.: dev, staging, prod), com apenas um ativo por vez.
 
-### Persistência e exportação
+### Persistência, exportação e importação
 - Salvamento local de coleções, requisições e variáveis de ambiente (sem sincronização externa).
-- Exportação de coleção para arquivo JSON.
+- Exportação de uma coleção para arquivo JSON (com suas requisições, ambientes e variáveis).
+- Importação de uma coleção a partir de um arquivo JSON gerado por essa mesma exportação (sempre cria uma coleção nova).
 
 ## Fora de escopo nesta fase
 
@@ -44,7 +45,7 @@ Alternativa ao Postman, totalmente offline, sem dependência de conta, nuvem ou 
 - Geração de documentação de API.
 - Suporte a GraphQL e WebSocket.
 - Geração de snippets de código em outras linguagens.
-- Importação de coleções de outras ferramentas (Postman, Insomnia, etc.).
+- Importação de coleções de outras ferramentas (Postman, Insomnia, OpenAPI, HAR, etc.) — apenas o próprio formato de exportação JSON do API UI é lido.
 - Autenticação avançada (OAuth, AWS Signature, etc.) — apenas headers manuais nesta fase.
 
 ## Regras para uso do git

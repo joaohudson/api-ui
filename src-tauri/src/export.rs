@@ -47,10 +47,18 @@ pub type Result<T> = std::result::Result<T, ExportError>;
 /// não colidir com o campo já existente em `Collection`.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CollectionExport {
+    /// Marcador de formato/versão do arquivo exportado. Constante; lido e
+    /// validado pela importação (`crate::import`) para recusar arquivos de
+    /// outro formato/versão.
+    pub schema: &'static str,
     #[serde(flatten)]
     pub collection: Collection,
     pub environment_data: Vec<Environment>,
 }
+
+/// Valor gravado em `CollectionExport::schema`. A importação rejeita qualquer
+/// outro valor presente no arquivo.
+pub const EXPORT_SCHEMA: &str = "api-ui/collection-export@1";
 
 /// Monta a estrutura de exportação de uma coleção: os dados da coleção (que já
 /// incluem as requisições salvas) mais os dados completos de cada ambiente
@@ -60,6 +68,7 @@ fn build_export(app: &AppHandle, collection_id: &str) -> Result<CollectionExport
     let environments = environments::list_environments(app, collection_id)?;
 
     Ok(CollectionExport {
+        schema: EXPORT_SCHEMA,
         collection,
         environment_data: environments,
     })
