@@ -46,3 +46,9 @@ Alternativa ao Postman, totalmente offline, sem dependência de conta, nuvem ou 
 - Geração de snippets de código em outras linguagens.
 - Importação de coleções de outras ferramentas (Postman, Insomnia, etc.).
 - Autenticação avançada (OAuth, AWS Signature, etc.) — apenas headers manuais nesta fase.
+
+## Regras para uso do git
+
+Somente comandos de consulta (leitura) são permitidos: `status`, `diff`, `log`, `show`, `branch` (sem argumentos), etc.
+
+Nenhum comando que altere o estado do repositório deve ser executado — isso inclui, sem se limitar a, `add`, `commit`, `push`, `pull`, `switch`, `checkout`, `reset`, `restore`, `clean`, `merge`, `rebase`, `stash` e `branch -d/-D`. Se alguma dessas ações for necessária, peça para o usuário executá-la manualmente.

@@ -71,13 +71,22 @@ function createEmptyDraft() {
 }
 
 let draft = createEmptyDraft();
-let running = false;
-let saving = false;
 let onRequestStateChange = null;
 let onRequestSaved = null;
 
-/** Aba atualmente selecionada no tab menu de parâmetros (fase 4). */
-let activeParamsTab = "query";
+/**
+ * Estados de execução/salvamento e a aba ativa do menu de parâmetros (fase
+ * 4), isolados por requisição (chave = `requestId`, ou `null` para o
+ * rascunho sem requisição salva selecionada) — sem isso, alternar a
+ * requisição selecionada enquanto uma requisição anterior ainda está em voo
+ * (ou sendo salva) faz o botão "Enviar"/"Salvar" da requisição errada
+ * aparentar estar em andamento, já que esse estado era compartilhado
+ * globalmente entre todas as requisições.
+ */
+const runningRequests = new Map();
+/** Valores possíveis por chave: "saving" | "saved" (undefined = ocioso). */
+const savingState = new Map();
+const activeTabByRequest = new Map();
 
 /**
  * Identifica qual requisição salva está carregada no editor no momento
@@ -440,13 +449,14 @@ function buildHttpRequestInput() {
 }
 
 async function handleSendRequest() {
-  if (running) return;
-  running = true;
   // Capturado no início: se o usuário trocar a requisição selecionada
-  // enquanto esta ainda está em voo, a resposta deve continuar associada à
-  // requisição que foi de fato enviada, não à que estiver selecionada quando
-  // a resposta chegar.
+  // enquanto esta ainda está em voo, tanto a resposta quanto o estado do
+  // botão "Enviar" devem continuar associados à requisição que foi de fato
+  // enviada, não à que estiver selecionada quando a resposta chegar.
   const requestId = currentMeta.requestId;
+  if (runningRequests.get(requestId)) return;
+  runningRequests.set(requestId, true);
+  refreshToolbarIfCurrent(requestId);
   notifyStateChange({ running: true, requestId });
 
   try {
@@ -456,8 +466,25 @@ async function handleSendRequest() {
   } catch (error) {
     notifyStateChange({ running: false, error: String(error), requestId });
   } finally {
-    running = false;
+    runningRequests.delete(requestId);
+    refreshToolbarIfCurrent(requestId);
   }
+}
+
+/**
+ * Reconstrói só a toolbar (método/URL/Salvar/Enviar) — não o formulário
+ * inteiro — quando o estado de uma requisição muda (`requestId`) e ela ainda
+ * é a que está carregada no editor no momento. Escopo restrito ao toolbar
+ * para não perder foco/cursor em campos de outras seções (params/body) caso
+ * o usuário esteja editando algo enquanto uma resposta chega.
+ */
+function refreshToolbarIfCurrent(requestId) {
+  if (requestId !== currentMeta.requestId) return;
+  const form = document.querySelector("#request-editor .request-editor-form");
+  if (!form) return;
+  const oldToolbar = form.querySelector(".editor-toolbar");
+  if (!oldToolbar) return;
+  form.replaceChild(buildToolbar(), oldToolbar);
 }
 
 function notifyStateChange(payload) {
@@ -478,14 +505,19 @@ function buildSavedRequestPayload() {
   };
 }
 
-async function handleSaveRequest(button) {
-  if (saving || !currentMeta.requestId) return;
+async function handleSaveRequest() {
+  // Capturado no início pelo mesmo motivo do envio: o resultado do
+  // salvamento (e o texto/estado do botão "Salvar") deve ficar associado à
+  // requisição que estava carregada quando o clique ocorreu, não à que
+  // estiver selecionada quando a chamada retornar. Usar o elemento do botão
+  // recebido por referência (como antes) quebraria nesse cenário, já que a
+  // troca de requisição reconstrói a toolbar e descarta aquele nó do DOM.
+  const requestId = currentMeta.requestId;
+  if (!requestId || savingState.get(requestId) === "saving") return;
 
   const meta = currentMeta;
-  saving = true;
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = "Salvando...";
+  savingState.set(requestId, "saving");
+  refreshToolbarIfCurrent(requestId);
 
   try {
     const updated = await invoke("update_request", {
@@ -504,16 +536,18 @@ async function handleSaveRequest(button) {
       onRequestSaved(updated);
     }
 
-    button.textContent = "Salvo!";
+    savingState.set(requestId, "saved");
+    refreshToolbarIfCurrent(requestId);
     setTimeout(() => {
-      button.textContent = originalText;
+      if (savingState.get(requestId) === "saved") {
+        savingState.delete(requestId);
+        refreshToolbarIfCurrent(requestId);
+      }
     }, 1200);
   } catch (error) {
-    button.textContent = originalText;
+    savingState.delete(requestId);
+    refreshToolbarIfCurrent(requestId);
     await showAlert({ title: "Erro ao salvar requisição", message: String(error) });
-  } finally {
-    saving = false;
-    button.disabled = !currentMeta.requestId;
   }
 }
 
@@ -616,6 +650,10 @@ export function mountGlobalActionBar() {
 }
 
 function buildToolbar() {
+  const requestKey = currentMeta.requestId;
+  const isRunning = runningRequests.get(requestKey) === true;
+  const saveState = savingState.get(requestKey);
+
   const toolbar = document.createElement("div");
   toolbar.className = "editor-toolbar";
 
@@ -647,19 +685,19 @@ function buildToolbar() {
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
   saveBtn.className = "save-btn";
-  saveBtn.textContent = "Salvar";
-  saveBtn.disabled = saving || !currentMeta.requestId;
+  saveBtn.textContent = saveState === "saving" ? "Salvando..." : saveState === "saved" ? "Salvo!" : "Salvar";
+  saveBtn.disabled = saveState === "saving" || !currentMeta.requestId;
   saveBtn.title = currentMeta.requestId
     ? "Salvar alterações nesta requisição"
     : "Selecione uma requisição salva na sidebar para habilitar o salvamento";
-  saveBtn.addEventListener("click", () => handleSaveRequest(saveBtn));
+  saveBtn.addEventListener("click", handleSaveRequest);
   toolbar.appendChild(saveBtn);
 
   const sendBtn = document.createElement("button");
   sendBtn.type = "button";
   sendBtn.className = "send-btn";
-  sendBtn.textContent = running ? "Enviando..." : "Enviar";
-  sendBtn.disabled = running;
+  sendBtn.textContent = isRunning ? "Enviando..." : "Enviar";
+  sendBtn.disabled = isRunning;
   sendBtn.addEventListener("click", handleSendRequest);
   toolbar.appendChild(sendBtn);
 
@@ -667,6 +705,9 @@ function buildToolbar() {
 }
 
 function buildParamsTabsSection() {
+  const requestKey = currentMeta.requestId;
+  const activeParamsTab = activeTabByRequest.get(requestKey) || "query";
+
   const wrapper = document.createElement("div");
   wrapper.className = "editor-tabs";
 
@@ -721,7 +762,7 @@ function buildParamsTabsSection() {
     btn.textContent = tab.label;
     if (tab.id === activeParamsTab) btn.classList.add("active");
     btn.addEventListener("click", () => {
-      activeParamsTab = tab.id;
+      activeTabByRequest.set(requestKey, tab.id);
       tabButtons.querySelectorAll(".editor-tab-btn").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       tabPanels.querySelectorAll(".editor-tab-panel").forEach((p) => p.classList.remove("active"));
