@@ -4,6 +4,8 @@
   "private": true,
   "description": "Cliente de API offline, alternativa ao Postman",
   "type": "module",
+  "author": "João Hudson <joaohudson29@gmail.com>",
+  "license": "MIT",
   "scripts": {
     "tauri": "tauri"
   },

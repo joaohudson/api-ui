@@ -2,6 +2,8 @@
 name = "api-ui"
 version = "0.1.0"
 description = "Cliente de API offline, alternativa ao Postman"
+authors = ["João Hudson <joaohudson29@gmail.com>"]
+license = "MIT"
 edition = "2021"
 rust-version = "1.77"
 

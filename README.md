@@ -50,3 +50,9 @@ npm run tauri build
 ```
 
 O executável gerado pelo build fica em `src-tauri/target/release/`.
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+© 2026 João Hudson
