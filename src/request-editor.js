@@ -50,6 +50,18 @@ const BODY_TYPES = [
 
 const VARIABLE_PATTERN = /\{\{\s*[^{}]+\s*\}\}/;
 
+// Ícones inline (currentColor) do botão "Salvar" — mesmo padrão de SVG
+// embutido usado em `buildImportMenu`. `save` = estado ocioso (disquete),
+// `check` = estado "salvo".
+const ICON_SAVE =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
+  '<path fill="currentColor" d="M2.75 2h8.19c.2 0 .39.08.53.22l2.31 2.31c.14.14.22.33.22.53v8.19A1.75 1.75 0 0 1 12.25 15H2.75A1.75 1.75 0 0 1 1 13.25V3.75C1 2.78 1.78 2 2.75 2Zm.25 1.5v9.75c0 .14.11.25.25.25H4V9.75C4 9.34 4.34 9 4.75 9h6.5c.41 0 .75.34.75.75v3.75h.25a.25.25 0 0 0 .25-.25V5.31l-1.87-1.87V6a.75.75 0 0 1-.75.75h-5A.75.75 0 0 1 4.5 6V3.5H3Zm7.5 10v-3h-5v3h5ZM6 3.5v1.75h3.5V3.5H6Z"/>' +
+  "</svg>";
+const ICON_CHECK =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
+  '<path fill="currentColor" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-6.5 6.5a.75.75 0 0 1-1.06 0l-3-3a.75.75 0 1 1 1.06-1.06L6.75 10.19l5.97-5.97a.75.75 0 0 1 1.06 0Z"/>' +
+  "</svg>";
+
 /**
  * Estado em memória do editor (rascunho da requisição atualmente aberta).
  * `onChange`, quando definido pelo host (main.js), é chamado a cada
@@ -684,19 +696,34 @@ function buildToolbar() {
 
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
-  saveBtn.className = "save-btn";
-  saveBtn.textContent = saveState === "saving" ? "Salvando..." : saveState === "saved" ? "Salvo!" : "Salvar";
+  saveBtn.className = "save-btn save-btn--icon";
+  saveBtn.innerHTML =
+    saveState === "saving"
+      ? '<span class="spinner" aria-hidden="true"></span>'
+      : saveState === "saved"
+        ? ICON_CHECK
+        : ICON_SAVE;
   saveBtn.disabled = saveState === "saving" || !currentMeta.requestId;
-  saveBtn.title = currentMeta.requestId
-    ? "Salvar alterações nesta requisição"
-    : "Selecione uma requisição salva na sidebar para habilitar o salvamento";
+  const saveLabel = !currentMeta.requestId
+    ? "Selecione uma requisição salva na sidebar para habilitar o salvamento"
+    : saveState === "saving"
+      ? "Salvando..."
+      : saveState === "saved"
+        ? "Salvo"
+        : "Salvar alterações nesta requisição";
+  saveBtn.title = saveLabel;
+  saveBtn.setAttribute("aria-label", saveLabel);
   saveBtn.addEventListener("click", handleSaveRequest);
   toolbar.appendChild(saveBtn);
 
   const sendBtn = document.createElement("button");
   sendBtn.type = "button";
   sendBtn.className = "send-btn";
-  sendBtn.textContent = isRunning ? "Enviando..." : "Enviar";
+  if (isRunning) {
+    sendBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Enviando...';
+  } else {
+    sendBtn.textContent = "Enviar";
+  }
   sendBtn.disabled = isRunning;
   sendBtn.addEventListener("click", handleSendRequest);
   toolbar.appendChild(sendBtn);

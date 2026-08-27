@@ -297,6 +297,18 @@ button {
   cursor: not-allowed;
 }
 
+.save-btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem;
+  width: 2.1rem;
+}
+
+.save-btn--icon svg {
+  display: block;
+}
+
 .send-btn {
   flex-shrink: 0;
   background-color: var(--color-accent);
@@ -558,9 +570,41 @@ button {
   justify-content: flex-end;
 }
 
+/* Spinner / loading */
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.15em;
+  animation: spinner-rotate 0.6s linear infinite;
+}
+
+.send-btn .spinner {
+  margin-right: 0.45rem;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}
+
 /* Response panel (atividade 10) */
 
 .response-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--color-text-muted);
 }
 

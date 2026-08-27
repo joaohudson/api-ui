@@ -51,9 +51,15 @@ function renderEmptyState(container) {
 function renderLoadingState(container) {
   container.innerHTML = "";
   container.classList.remove("response-panel-content");
-  const loading = document.createElement("p");
+  const loading = document.createElement("div");
   loading.className = "empty-state response-loading";
-  loading.textContent = "Enviando requisição...";
+  const spinner = document.createElement("span");
+  spinner.className = "spinner";
+  spinner.setAttribute("aria-hidden", "true");
+  const text = document.createElement("span");
+  text.textContent = "Enviando requisição...";
+  loading.appendChild(spinner);
+  loading.appendChild(text);
   container.appendChild(loading);
 }
 

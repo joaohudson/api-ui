@@ -6,3 +6,4 @@
 - Fase 4 - Concluída
 - Fase 5 - Concluída
 - Fase 6 - Concluída
+- Fase 7 - Concluída
